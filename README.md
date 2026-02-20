@@ -60,9 +60,6 @@ backend/
 │   ├── v4_historical_slippage.py    # V4 slippage at historical blocks (IXS)
 │   ├── vault_performance.py         # Arrakis vault tracking + benchmarks (IXS)
 │   └── capital_efficiency.py        # Net slippage, break-even, capital efficiency (IXS)
-├── tests/
-│   ├── test_capital_efficiency.py   # Synthetic + integration tests
-│   └── test_vault_decomposition.py  # IL factor, annualized return, decomposition tests
 ├── notebooks/
 │   ├── slippage.ipynb               # Challenge 1: Slippage analysis
 │   ├── liquidity_analysis.ipynb     # Challenge 1: Liquidity distribution
