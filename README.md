@@ -58,7 +58,11 @@ backend/
 │   ├── migration_detection.py       # Binary search for migration block (IXS)
 │   ├── v2_slippage.py               # UniV2 constant-product slippage (IXS)
 │   ├── v4_historical_slippage.py    # V4 slippage at historical blocks (IXS)
-│   └── vault_performance.py         # Arrakis vault tracking + benchmarks (IXS)
+│   ├── vault_performance.py         # Arrakis vault tracking + benchmarks (IXS)
+│   └── capital_efficiency.py        # Net slippage, break-even, capital efficiency (IXS)
+├── tests/
+│   ├── test_capital_efficiency.py   # Synthetic + integration tests
+│   └── test_vault_decomposition.py  # IL factor, annualized return, decomposition tests
 ├── notebooks/
 │   ├── slippage.ipynb               # Challenge 1: Slippage analysis
 │   ├── liquidity_analysis.ipynb     # Challenge 1: Liquidity distribution
@@ -67,6 +71,7 @@ backend/
 │   ├── ixs_execution_quality.ipynb  # Challenge 2: V2 vs V4 execution quality
 │   ├── ixs_vault_performance.ipynb  # Challenge 2: Vault performance analysis
 │   ├── ixs_client_synthesis.ipynb   # Challenge 2: Client synthesis & recommendations
+│   ├── data/                        # Exported CSVs (slippage_summary, vault_summary)
 │   └── plots/                       # Generated charts
 └── pyproject.toml
 ```
@@ -90,31 +95,51 @@ uv run jupyter notebook
 
 ## Challenge 2: IXS/ETH Liquidity Migration
 
-Analysis of a liquidity migration from UniswapV2 to an Arrakis-managed UniswapV4 vault. All data obtained via RPC calls.
+Analysis of a liquidity migration from UniswapV2 to an Arrakis-managed UniswapV4 vault (Dec 10, 2025). All data obtained directly via RPC calls — no GraphQL or subgraph dependencies.
 
-### Key Results
+### D1: Execution Quality (V2 vs V4)
 
-**D1 - Execution Quality:**
-- V4 concentrated liquidity provides lower price impact than V2 for all trade sizes
-- V4 fee (0.70%) is higher than V2 (0.30%), partially offsetting the improvement on net cost
-- Larger trades ($10K+) benefit most from the migration
+**Pool parameters:** V2 fee 0.30% | V4 fee 0.70% (tickSpacing=50, hooks=address(0))
 
-**D2 - Vault Performance:**
-- Vault tracks IXS and ETH amounts over time with active rebalancing
-- Compared against HODL and full-range LP benchmarks
+1.1) Historical slippage computed for $1K/$5K/$10K/$50K in both directions (IXS→ETH and ETH→IXS) across ~6 months pre-migration (V2) and post-migration (V4). V2 uses `getReserves()` + constant-product formula; V4 uses `StateView.getSlot0()` + `Quoter.quoteExactInputSingle()` at archive blocks.
 
-**D3 - Client Synthesis:**
-- Migration is beneficial under price impact metrics
-- Recommends migrating remaining V2 liquidity to consolidate depth
+1.2) V4 concentrated liquidity delivers significantly lower *price impact* (gross slippage) than V2 for all trade sizes. The capital efficiency ratio (V2 gross / V4 gross) quantifies how much more efficient V4 is.
 
-### Key Contracts (Challenge 2)
+1.3) **Net slippage analysis (NEW):** Net cost = gross slippage + fee. The V4 fee (0.70%) is 2.3× higher than V2 (0.30%), creating a 0.40pp fee premium. Break-even analysis identifies the exact trade size where V4 becomes cheaper on net cost despite the higher fee. Visualized with break-even plots and net slippage time series.
 
-- **UniV2 Pair (IXS/WETH):** `0xC09bf2B1Bc8725903C509e8CAeef9190857215A8`
-- **UniV4 Pool ID:** `0xd54a5e98dc3d...` (fee=7000, tickSpacing=50)
-- **Arrakis Vault:** `0x90bde935ce7feb6636afd5a1a0340af45eeae600`
-- **Chainlink ETH/USD:** `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419`
+1.4) V4 liquidity distribution scanned via tick bitmap — most capital concentrated near the active tick. Compared against a theoretical full-range (V2-style) uniform distribution to visualize capital efficiency gains.
 
-### Key Contracts (Challenge 1)
+1.5) **Theory sections (NEW):** Derivation of V2 slippage formula (`S = Δx/(x+Δx)`), V4 concentrated slippage formula (`S = 1 - 1/(1 + Δx√P/L)²`), and the net cost framework.
 
-- **V4 Quoter**: `0x52f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203`
-- **MORPHO Pool ID**: `0xd9f5cbaeb88b7f0d9b0549257ddd4c46f984e2fc...`
+### D2: Vault Performance
+
+2.1) Tracked vault token amounts (IXS + ETH) daily since inception via `totalUnderlying()`. Initial deposit: ~1.88M IXS + 70 ETH; grew to ~4.2M IXS + 97 ETH. Vault composition visualized as USD stacked area (IXS value + ETH value).
+
+2.2) Compared vault against two benchmarks: **HODL** (hold initial amounts, no LP) and **full-range LP** (V2-style impermanent loss formula: `V = V_hodl × 2√r/(1+r)`). Concentrated positions amplify both fee capture *and* impermanent loss relative to full-range.
+
+2.3) Prices sourced entirely on-chain: ETH/USD from Chainlink oracle, IXS/ETH from V4 pool `sqrtPriceX96`. No external price APIs.
+
+2.4) **Return decomposition (NEW):** Vault return = price return + IL (full-range) + management premium. The management premium quantifies Arrakis's active management alpha vs passive full-range LP. Visualized as stacked area chart and waterfall bar.
+
+2.5) **Annualized performance (NEW):** Vault, HODL, and full-range returns annualized via `(final/initial)^(365/days) - 1` for fair comparison.
+
+### D3: Client Synthesis
+
+3.1) **Hybrid notebook (NEW):** Loads computed CSVs from D1 and D2 — all numbers in the synthesis are programmatically derived, not hard-coded.
+
+3.2) Migration is beneficial under execution quality metrics — traders get better prices, especially on larger trades. The higher fee tier is a tradeoff: better for LPs (more revenue), but small trades may be cheaper on V2 in net terms.
+
+3.3) Key risks: amplified impermanent loss in concentrated ranges, rebalancing gas costs (not visible in `totalUnderlying`), smart contract risk from the additional vault layer, and dependency on Arrakis's rebalancing strategy quality.
+
+3.4) **Key Metrics Dashboard (NEW):** Single computed summary including price impact improvement, net cost break-even, capital efficiency multiplier, annualized returns, and management premium.
+
+### Key Contracts
+
+| Contract | Address |
+|----------|---------|
+| UniV2 Pair (IXS/WETH) | `0xC09bf2B1Bc8725903C509e8CAeef9190857215A8` |
+| UniV4 Pool ID | `0xd54a5e98dc3d...` (fee=7000, tickSpacing=50) |
+| Arrakis Vault | `0x90bde935ce7feb6636afd5a1a0340af45eeae600` |
+| Chainlink ETH/USD | `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419` |
+| V4 Quoter (Challenge 1) | `0x52f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203` |
+| MORPHO Pool ID (Challenge 1) | `0xd9f5cbaeb88b7f0d9b0549257ddd4c46f984e2fc...` |
