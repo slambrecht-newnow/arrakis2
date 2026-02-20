@@ -6,10 +6,14 @@ or V4 sqrtPriceX96 at historical blocks.
 """
 
 
+import logging
+
 from web3 import Web3
 from web3.contract import Contract
 
 from .amm_math import sqrt_price_x96_to_price
+
+logger = logging.getLogger(__name__)
 
 
 def get_eth_usd_at_block(chainlink: Contract, block: int) -> float:
@@ -65,6 +69,7 @@ def batch_eth_usd_prices(
             price = get_eth_usd_at_block(chainlink, block)
             prices.append(price)
         except Exception:
+            logger.warning("Failed to fetch ETH/USD at block %d", block, exc_info=True)
             prices.append(0.0)
     return prices
 
@@ -91,5 +96,6 @@ def batch_ixs_prices(
                 )
             prices.append(price)
         except Exception:
+            logger.warning("Failed to fetch IXS price at block %d", block, exc_info=True)
             prices.append(0.0)
     return prices

@@ -6,10 +6,14 @@ enabling historical slippage analysis for the IXS migration study.
 """
 
 
+import logging
+
 from web3 import Web3
 from web3.contract import Contract
 
 from .amm_math import sqrt_price_x96_to_price
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_v4_slippage_at_block(
@@ -150,10 +154,12 @@ def batch_v4_slippage_at_blocks(
                         "net_slippage_pct": net,
                     }
                 except Exception as e:
+                    logger.warning("V4 quote failed at block %d for amount %d: %s", block, amount, e, exc_info=True)
                     block_result["trades"][amount] = {"error": str(e)}
 
             results.append(block_result)
         except Exception as e:
+            logger.warning("V4 slippage query failed at block %d: %s", block, e, exc_info=True)
             results.append({"block": block, "error": str(e)})
 
     return results

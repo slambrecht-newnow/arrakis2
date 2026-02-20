@@ -5,9 +5,12 @@ Tracks vault token holdings over time, compares against HODL and
 full-range (constant-product) LP benchmarks.
 """
 
+import logging
 import math
 
 from web3.contract import Contract
+
+logger = logging.getLogger(__name__)
 
 
 def get_vault_underlying_at_block(
@@ -34,6 +37,7 @@ def batch_vault_underlying(
             a0, a1 = get_vault_underlying_at_block(vault, block)
             results.append((block, a0, a1))
         except Exception:
+            logger.warning("Vault underlying query failed at block %d", block, exc_info=True)
             results.append((block, 0, 0))
     return results
 
@@ -115,6 +119,7 @@ def get_vault_performance_timeseries(
     try:
         init_a0, init_a1 = get_vault_underlying_at_block(vault, blocks[0])
     except Exception:
+        logger.warning("Failed to fetch initial vault state at block %d", blocks[0], exc_info=True)
         init_a0, init_a1 = 0, 0
 
     init_amount0 = init_a0 / (10 ** token0_decimals)
@@ -127,6 +132,7 @@ def get_vault_performance_timeseries(
         try:
             a0, a1 = get_vault_underlying_at_block(vault, block)
         except Exception:
+            logger.warning("Vault underlying query failed at block %d", block, exc_info=True)
             a0, a1 = 0, 0
 
         amount0 = a0 / (10 ** token0_decimals)

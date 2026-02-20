@@ -7,8 +7,12 @@ Uses binary search to find the block where:
 3. V2 liquidity dropped significantly
 """
 
+import logging
+
 from web3 import Web3
 from web3.contract import Contract
+
+logger = logging.getLogger(__name__)
 
 
 def find_v4_pool_creation_block(
@@ -31,6 +35,7 @@ def find_v4_pool_creation_block(
             else:
                 low = mid + 1
         except Exception:
+            logger.warning("V4 pool query failed at block %d", mid, exc_info=True)
             low = mid + 1
 
     return low
@@ -55,6 +60,7 @@ def find_vault_first_deposit_block(
             else:
                 low = mid + 1
         except Exception:
+            logger.warning("Vault query failed at block %d", mid, exc_info=True)
             low = mid + 1
 
     return low
@@ -80,6 +86,7 @@ def detect_v2_liquidity_drop(
                     return block
             prev_total = total
         except Exception:
+            logger.warning("V2 reserves query failed at block %d", block, exc_info=True)
             continue
     return None
 

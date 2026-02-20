@@ -5,7 +5,11 @@ Computes slippage from on-chain reserves with no Quoter needed —
 just one getReserves call per block, then all trade sizes computed locally.
 """
 
+import logging
+
 from web3.contract import Contract
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_v2_amount_out(
@@ -132,6 +136,7 @@ def batch_v2_slippage_at_blocks(
 
             results.append(block_result)
         except Exception as e:
+            logger.warning("V2 slippage query failed at block %d: %s", block, e, exc_info=True)
             results.append({"block": block, "error": str(e)})
 
     return results
