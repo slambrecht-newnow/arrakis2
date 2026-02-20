@@ -150,3 +150,63 @@ def get_vault_performance_timeseries(
         })
 
     return results
+
+
+def compute_il_factor(price_ratio: float) -> float:
+    """
+    Compute the impermanent loss multiplier for a given price ratio.
+
+    IL factor = 2*sqrt(r) / (1+r), where r = p_t / p_0.
+    Always <= 1.0 (equality at r=1, i.e. no price change).
+    """
+    if price_ratio <= 0:
+        return 0.0
+    return 2 * math.sqrt(price_ratio) / (1 + price_ratio)
+
+
+def compute_annualized_return(
+    initial_value: float,
+    final_value: float,
+    days: float,
+) -> float:
+    """
+    Compute annualized return as a percentage.
+
+    Formula: ((final/initial)^(365/days) - 1) * 100
+    """
+    if initial_value <= 0 or days <= 0:
+        return 0.0
+    return (((final_value / initial_value) ** (365.0 / days)) - 1) * 100
+
+
+def decompose_vault_returns(
+    vault_usd: list[float],
+    hodl_usd: list[float],
+    fullrange_usd: list[float],
+) -> list[dict]:
+    """
+    Decompose vault returns into price return, IL, and management premium.
+
+    Identity: vault = hodl + il_fullrange + management_premium
+    - price_return = hodl - hodl[0] (pure price movement)
+    - il_fullrange = fullrange - hodl (impermanent loss for full-range LP)
+    - management_premium = vault - fullrange (Arrakis active management alpha)
+    - total_lp_effect = il_fullrange + management_premium = vault - hodl
+    """
+    initial_hodl = hodl_usd[0] if hodl_usd else 0.0
+    results = []
+
+    for i in range(len(vault_usd)):
+        price_return = hodl_usd[i] - initial_hodl
+        il_fullrange = fullrange_usd[i] - hodl_usd[i]
+        management_premium = vault_usd[i] - fullrange_usd[i]
+        total_lp_effect = il_fullrange + management_premium
+
+        results.append({
+            "price_return": price_return,
+            "il_fullrange": il_fullrange,
+            "management_premium": management_premium,
+            "total_lp_effect": total_lp_effect,
+        })
+
+    return results
