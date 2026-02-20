@@ -143,3 +143,42 @@ def decode_tick_liquidity_result(data: bytes) -> tuple[int, int]:
     """Decode getTickLiquidity return data."""
     result = decode(["uint128", "int128"], data)
     return (result[0], result[1])
+
+
+# ─── IXS Migration: V2 Pair, Vault, Chainlink ───
+
+
+def build_get_reserves_call(pair_address: str) -> tuple[str, bool, bytes]:
+    """Build a UniV2 getReserves call for multicall."""
+    selector = bytes.fromhex("0902f1ac")  # getReserves()
+    return encode_call(pair_address, selector)
+
+
+def decode_get_reserves_result(data: bytes) -> tuple[int, int, int]:
+    """Decode UniV2 getReserves return data."""
+    result = decode(["uint112", "uint112", "uint32"], data)
+    return (result[0], result[1], result[2])
+
+
+def build_total_underlying_call(vault_address: str) -> tuple[str, bool, bytes]:
+    """Build an Arrakis vault totalUnderlying call for multicall."""
+    selector = bytes.fromhex("c70920bc")  # totalUnderlying()
+    return encode_call(vault_address, selector)
+
+
+def decode_total_underlying_result(data: bytes) -> tuple[int, int]:
+    """Decode Arrakis vault totalUnderlying return data."""
+    result = decode(["uint256", "uint256"], data)
+    return (result[0], result[1])
+
+
+def build_chainlink_latest_round_call(feed_address: str) -> tuple[str, bool, bytes]:
+    """Build a Chainlink latestRoundData call for multicall."""
+    selector = bytes.fromhex("feaf968c")  # latestRoundData()
+    return encode_call(feed_address, selector)
+
+
+def decode_chainlink_latest_round_result(data: bytes) -> tuple[int, int, int, int, int]:
+    """Decode Chainlink latestRoundData return data."""
+    result = decode(["uint80", "int256", "uint256", "uint256", "uint80"], data)
+    return (result[0], result[1], result[2], result[3], result[4])

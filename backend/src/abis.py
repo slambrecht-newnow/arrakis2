@@ -1,7 +1,8 @@
 """
-Contract ABIs for Uniswap V4 pool interactions.
+Contract ABIs for Uniswap V4 pool interactions and IXS migration analysis.
 
-Contains minimal ABIs for StateView, Quoter, and ERC20 contracts.
+Contains minimal ABIs for StateView, Quoter, ERC20, UniV2 Pair,
+Arrakis Vault, and Chainlink price feeds.
 """
 
 # StateView ABI (minimal - for basic pool queries)
@@ -101,4 +102,103 @@ QUOTER_ABI = [
             {"name": "gasEstimate", "type": "uint256"},
         ],
     }
+]
+
+
+# ─── IXS Migration ABIs ───
+
+# UniswapV2 Pair ABI (minimal)
+UNIV2_PAIR_ABI = [
+    {
+        "name": "getReserves",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+            {"name": "reserve0", "type": "uint112"},
+            {"name": "reserve1", "type": "uint112"},
+            {"name": "blockTimestampLast", "type": "uint32"},
+        ],
+    },
+    {
+        "name": "token0",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+    },
+    {
+        "name": "token1",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+    },
+]
+
+
+# Arrakis Vault ABI (minimal)
+ARRAKIS_VAULT_ABI = [
+    {
+        "name": "totalUnderlying",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+            {"name": "amount0", "type": "uint256"},
+            {"name": "amount1", "type": "uint256"},
+        ],
+    },
+    {
+        "name": "token0",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+    },
+    {
+        "name": "token1",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "address"}],
+    },
+]
+
+
+# Chainlink Aggregator ABI (minimal)
+CHAINLINK_ABI = [
+    {
+        "name": "latestRoundData",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+            {"name": "roundId", "type": "uint80"},
+            {"name": "answer", "type": "int256"},
+            {"name": "startedAt", "type": "uint256"},
+            {"name": "updatedAt", "type": "uint256"},
+            {"name": "answeredInRound", "type": "uint80"},
+        ],
+    },
+    {
+        "name": "getRoundData",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [{"name": "_roundId", "type": "uint80"}],
+        "outputs": [
+            {"name": "roundId", "type": "uint80"},
+            {"name": "answer", "type": "int256"},
+            {"name": "startedAt", "type": "uint256"},
+            {"name": "updatedAt", "type": "uint256"},
+            {"name": "answeredInRound", "type": "uint80"},
+        ],
+    },
+    {
+        "name": "decimals",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [{"name": "", "type": "uint8"}],
+    },
 ]

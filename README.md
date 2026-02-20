@@ -1,6 +1,7 @@
 # Arrakis - UniV4 Market Making Analysis
 
-Analysis of the ETH/MORPHO Uniswap V4 pool: slippage mechanics, liquidity distribution, and DEX vs CEX execution comparison.
+Two analysis challenges: (1) ETH/MORPHO V4 pool analysis and (2) IXS/ETH liquidity migration from UniswapV2 to Arrakis-managed V4 vault.
+
 **Note:** Pool state (prices, ticks, liquidity) changes over time. Outputs may vary slightly depending on when the code is run.
 
 ## Key Results
@@ -42,22 +43,31 @@ Used Multicall3 to batch sequential RPC calls into 2 calls. Speeding up fetch ti
 ```
 backend/
 ├── src/
-│   ├── config.py              # Contract addresses, pool params
-│   ├── abis.py                # StateView, Quoter ABIs
-│   ├── slippage.py            # V4 Quoter slippage calculation
-│   ├── tvl.py                 # TVL from on-chain + GraphQL
-│   ├── liquidity_distribution.py  # Tick bitmap scanning
-│   ├── amm_math.py            # Price/tick conversions
-│   ├── cex_analysis.py        # Orderbook analysis via CCXT
-│   ├── multicall.py           # Multicall3 batching utilities
-│   ├── optimized_v4_fetch.py  # Optimized batch data fetching
-│   └── async_rpc.py           # Async RPC helpers
+│   ├── config.py                    # Contract addresses, pool params (both challenges)
+│   ├── abis.py                      # StateView, Quoter, V2 Pair, Vault, Chainlink ABIs
+│   ├── amm_math.py                  # Price/tick conversions (Decimal precision)
+│   ├── slippage.py                  # V4 real-time slippage (MORPHO)
+│   ├── tvl.py                       # TVL from on-chain + GraphQL
+│   ├── liquidity_distribution.py    # Tick bitmap scanning
+│   ├── cex_analysis.py              # CEX orderbook analysis via CCXT
+│   ├── multicall.py                 # Multicall3 batching utilities
+│   ├── async_rpc.py                 # Async RPC helpers
+│   ├── optimized_v4_fetch.py        # Optimized batch data fetching
+│   ├── block_utils.py               # Block sampling and timestamps (IXS)
+│   ├── price_feeds.py               # Chainlink + pool price feeds (IXS)
+│   ├── migration_detection.py       # Binary search for migration block (IXS)
+│   ├── v2_slippage.py               # UniV2 constant-product slippage (IXS)
+│   ├── v4_historical_slippage.py    # V4 slippage at historical blocks (IXS)
+│   └── vault_performance.py         # Arrakis vault tracking + benchmarks (IXS)
 ├── notebooks/
-│   ├── slippage.ipynb             # Q1: Slippage analysis
-│   ├── liquidity_analysis.ipynb   # Q2: Liquidity distribution
-│   ├── cex_comparison.ipynb       # Q3: DEX vs CEX
-│   ├── optimization_benchmark.ipynb  # Bonus: Multicall optimization
-│   └── plots/                     # Generated charts
+│   ├── slippage.ipynb               # Challenge 1: Slippage analysis
+│   ├── liquidity_analysis.ipynb     # Challenge 1: Liquidity distribution
+│   ├── cex_comparison.ipynb         # Challenge 1: DEX vs CEX
+│   ├── optimization_benchmark.ipynb # Challenge 1: Multicall optimization
+│   ├── ixs_execution_quality.ipynb  # Challenge 2: V2 vs V4 execution quality
+│   ├── ixs_vault_performance.ipynb  # Challenge 2: Vault performance analysis
+│   ├── ixs_client_synthesis.ipynb   # Challenge 2: Client synthesis & recommendations
+│   └── plots/                       # Generated charts
 └── pyproject.toml
 ```
 
@@ -78,8 +88,33 @@ Run notebooks:
 uv run jupyter notebook
 ```
 
-## Key Contracts
+## Challenge 2: IXS/ETH Liquidity Migration
 
-- **V4 Singleton**: `0x000000000004444c5dc75cB358380D2e3dE08A90`
+Analysis of a liquidity migration from UniswapV2 to an Arrakis-managed UniswapV4 vault. All data obtained via RPC calls.
+
+### Key Results
+
+**D1 - Execution Quality:**
+- V4 concentrated liquidity provides lower price impact than V2 for all trade sizes
+- V4 fee (0.70%) is higher than V2 (0.30%), partially offsetting the improvement on net cost
+- Larger trades ($10K+) benefit most from the migration
+
+**D2 - Vault Performance:**
+- Vault tracks IXS and ETH amounts over time with active rebalancing
+- Compared against HODL and full-range LP benchmarks
+
+**D3 - Client Synthesis:**
+- Migration is beneficial under price impact metrics
+- Recommends migrating remaining V2 liquidity to consolidate depth
+
+### Key Contracts (Challenge 2)
+
+- **UniV2 Pair (IXS/WETH):** `0xC09bf2B1Bc8725903C509e8CAeef9190857215A8`
+- **UniV4 Pool ID:** `0xd54a5e98dc3d...` (fee=7000, tickSpacing=50)
+- **Arrakis Vault:** `0x90bde935ce7feb6636afd5a1a0340af45eeae600`
+- **Chainlink ETH/USD:** `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419`
+
+### Key Contracts (Challenge 1)
+
 - **V4 Quoter**: `0x52f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203`
-- **Pool ID**: `0xd9f5cbaeb88b7f0d9b0549257ddd4c46f984e2fc...`
+- **MORPHO Pool ID**: `0xd9f5cbaeb88b7f0d9b0549257ddd4c46f984e2fc...`

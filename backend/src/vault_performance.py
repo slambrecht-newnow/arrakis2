@@ -1,0 +1,152 @@
+"""
+Arrakis vault performance tracking and benchmark comparisons.
+
+Tracks vault token holdings over time, compares against HODL and
+full-range (constant-product) LP benchmarks.
+"""
+
+import math
+
+from web3.contract import Contract
+
+
+def get_vault_underlying_at_block(
+    vault: Contract, block: int
+) -> tuple[int, int]:
+    """Get vault totalUnderlying (amount0, amount1) at a historical block."""
+    amount0, amount1 = vault.functions.totalUnderlying().call(
+        block_identifier=block
+    )
+    return amount0, amount1
+
+
+def batch_vault_underlying(
+    vault: Contract, blocks: list[int]
+) -> list[tuple[int, int, int]]:
+    """
+    Fetch vault underlying at multiple blocks.
+
+    Returns list of (block, amount0, amount1) tuples.
+    """
+    results = []
+    for block in blocks:
+        try:
+            a0, a1 = get_vault_underlying_at_block(vault, block)
+            results.append((block, a0, a1))
+        except Exception:
+            results.append((block, 0, 0))
+    return results
+
+
+def calculate_hodl_value(
+    initial_amount0: float,
+    initial_amount1: float,
+    price0_usd: float,
+    price1_usd: float,
+) -> float:
+    """Calculate HODL portfolio value: just hold initial token amounts."""
+    return initial_amount0 * price0_usd + initial_amount1 * price1_usd
+
+
+def calculate_fullrange_lp_value(
+    initial_amount0: float,
+    initial_amount1: float,
+    initial_price0_usd: float,
+    initial_price1_usd: float,
+    current_price0_usd: float,
+    current_price1_usd: float,
+) -> float:
+    """
+    Calculate full-range (x*y=k) LP value at current prices.
+
+    A full-range LP on V2 follows x*y=k. Given initial deposit,
+    the value at new prices follows the impermanent loss formula:
+    V_lp = V_hodl * 2*sqrt(r) / (1+r) where r = price_ratio_change.
+
+    We compute for each token independently and combine.
+    """
+    initial_value = (
+        initial_amount0 * initial_price0_usd
+        + initial_amount1 * initial_price1_usd
+    )
+
+    if initial_value == 0:
+        return 0.0
+
+    # For a two-asset LP, the IL formula uses the relative price change
+    # between the two assets. We compute the price ratio.
+    # Initial price ratio: price0/price1
+    if initial_price1_usd == 0 or current_price1_usd == 0:
+        return initial_value
+
+    initial_ratio = initial_price0_usd / initial_price1_usd
+    current_ratio = current_price0_usd / current_price1_usd
+
+    if initial_ratio == 0:
+        return initial_value
+
+    r = current_ratio / initial_ratio
+
+    # Impermanent loss multiplier: 2*sqrt(r) / (1 + r)
+    il_multiplier = 2 * math.sqrt(r) / (1 + r)
+
+    # HODL value at current prices
+    hodl_value = calculate_hodl_value(
+        initial_amount0, initial_amount1, current_price0_usd, current_price1_usd
+    )
+
+    return hodl_value * il_multiplier
+
+
+def get_vault_performance_timeseries(
+    vault: Contract,
+    blocks: list[int],
+    token0_prices_usd: list[float],
+    token1_prices_usd: list[float],
+    token0_decimals: int = 18,
+    token1_decimals: int = 18,
+) -> list[dict]:
+    """
+    Compute vault value, HODL value, and full-range LP value over time.
+
+    Returns list of dicts with block, vault_usd, hodl_usd, fullrange_usd.
+    """
+    # Get initial vault amounts
+    try:
+        init_a0, init_a1 = get_vault_underlying_at_block(vault, blocks[0])
+    except Exception:
+        init_a0, init_a1 = 0, 0
+
+    init_amount0 = init_a0 / (10 ** token0_decimals)
+    init_amount1 = init_a1 / (10 ** token1_decimals)
+    init_price0 = token0_prices_usd[0]
+    init_price1 = token1_prices_usd[0]
+
+    results = []
+    for i, block in enumerate(blocks):
+        try:
+            a0, a1 = get_vault_underlying_at_block(vault, block)
+        except Exception:
+            a0, a1 = 0, 0
+
+        amount0 = a0 / (10 ** token0_decimals)
+        amount1 = a1 / (10 ** token1_decimals)
+        p0 = token0_prices_usd[i]
+        p1 = token1_prices_usd[i]
+
+        vault_usd = amount0 * p0 + amount1 * p1
+        hodl_usd = calculate_hodl_value(init_amount0, init_amount1, p0, p1)
+        fullrange_usd = calculate_fullrange_lp_value(
+            init_amount0, init_amount1, init_price0, init_price1, p0, p1
+        )
+
+        results.append({
+            "block": block,
+            "amount0": amount0,
+            "amount1": amount1,
+            "vault_usd": vault_usd,
+            "hodl_usd": hodl_usd,
+            "fullrange_usd": fullrange_usd,
+        })
+
+    return results
