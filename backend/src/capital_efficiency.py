@@ -8,6 +8,18 @@ import numpy as np
 import pandas as pd
 
 
+def _get_trade(r: dict, amt: int) -> dict:
+    """Get trade result, handling JSON string-key cache."""
+    trades = r.get("trades", {})
+    return trades.get(amt) or trades.get(str(amt)) or {}
+
+
+def _has_trade(r: dict, amt: int) -> bool:
+    """Check if a valid trade exists for this amount."""
+    t = _get_trade(r, amt)
+    return bool(t) and "error" not in t and "gross_slippage_pct" in t
+
+
 def compute_net_slippage_summary(
     v2_results: list[dict],
     v4_results: list[dict],
@@ -27,18 +39,14 @@ def compute_net_slippage_summary(
     rows = []
     for usd, v2_amt, v4_amt in zip(sizes_usd, v2_amounts, v4_amounts):
         v2_gross = [
-            r["trades"][v2_amt]["gross_slippage_pct"]
+            _get_trade(r, v2_amt)["gross_slippage_pct"]
             for r in v2_results
-            if "error" not in r
-            and v2_amt in r.get("trades", {})
-            and "error" not in r["trades"].get(v2_amt, {"error": True})
+            if "error" not in r and _has_trade(r, v2_amt)
         ]
         v4_gross = [
-            r["trades"][v4_amt]["gross_slippage_pct"]
+            _get_trade(r, v4_amt)["gross_slippage_pct"]
             for r in v4_results
-            if "error" not in r
-            and v4_amt in r.get("trades", {})
-            and "error" not in r["trades"].get(v4_amt, {"error": True})
+            if "error" not in r and _has_trade(r, v4_amt)
         ]
 
         v2_g = float(np.mean(v2_gross)) if v2_gross else 0.0
