@@ -166,6 +166,40 @@ ARRAKIS_VAULT_ABI = [
 ]
 
 
+# Arrakis Module ABI (minimal — for active range tracking)
+ARRAKIS_MODULE_ABI = [
+    {
+        "name": "getRanges",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "ranges",
+                "type": "tuple[]",
+                "components": [
+                    {"name": "tickLower", "type": "int24"},
+                    {"name": "tickUpper", "type": "int24"},
+                ],
+            }
+        ],
+    },
+    {
+        "name": "poolKey",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+            {"name": "currency0", "type": "address"},
+            {"name": "currency1", "type": "address"},
+            {"name": "fee", "type": "uint24"},
+            {"name": "tickSpacing", "type": "int24"},
+            {"name": "hooks", "type": "address"},
+        ],
+    },
+]
+
+
 # Chainlink Aggregator ABI (minimal)
 CHAINLINK_ABI = [
     {

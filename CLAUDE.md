@@ -74,24 +74,36 @@ uv run jupyter notebook
 
 ## Module Structure
 
+> **Repo split TODO:** This repo currently contains both challenges. Shared modules
+> (config, abis, amm_math, async_rpc, multicall) are used by both. When splitting
+> Challenge 2 into its own repo, copy the shared modules and remove all Challenge 1
+> code (slippage.py, tvl.py, liquidity_distribution.py, cex_analysis.py,
+> optimized_v4_fetch.py, and Challenge 1 notebooks).
+
 ```
 backend/src/
-├── config.py                    # All contract addresses and pool params
-├── abis.py                      # Minimal smart contract ABIs
-├── amm_math.py                  # Price/tick conversion math (Decimal precision)
-├── slippage.py                  # V4 real-time slippage (MORPHO challenge)
+├── config.py                    # All contract addresses and pool params [SHARED]
+├── abis.py                      # Minimal smart contract ABIs [SHARED]
+├── amm_math.py                  # Price/tick conversion math (Decimal) [SHARED]
+├── async_rpc.py                 # Async RPC helpers [SHARED]
+├── multicall.py                 # Multicall3 batching [SHARED]
+│
+│   # Challenge 1 - MORPHO/ETH (remove when splitting repo)
+├── slippage.py                  # V4 real-time slippage
 ├── tvl.py                       # TVL calculations (on-chain + GraphQL)
 ├── liquidity_distribution.py    # Tick bitmap scanning
 ├── cex_analysis.py              # CEX orderbook analysis (CCXT)
-├── multicall.py                 # Multicall3 batching
-├── async_rpc.py                 # Async RPC helpers
 ├── optimized_v4_fetch.py        # Optimized batch fetching
-├── block_utils.py               # Block sampling and timestamp utils (IXS)
-├── price_feeds.py               # Chainlink + pool price feeds (IXS)
-├── migration_detection.py       # Binary search for migration block (IXS)
-├── v2_slippage.py               # UniV2 constant-product slippage (IXS)
-├── v4_historical_slippage.py    # V4 slippage at historical blocks (IXS)
-└── vault_performance.py         # Arrakis vault tracking + benchmarks (IXS)
+│
+│   # Challenge 2 - IXS/ETH Migration
+├── block_utils.py               # Block sampling and timestamp utils
+├── price_feeds.py               # Chainlink + pool price feeds
+├── migration_detection.py       # Binary search for migration block
+├── v2_slippage.py               # UniV2 constant-product slippage
+├── v4_historical_slippage.py    # V4 slippage at historical blocks
+├── vault_performance.py         # Arrakis vault tracking + benchmarks
+├── vault_rebalancing.py         # Active range tracking & capital efficiency
+└── capital_efficiency.py        # Net slippage, break-even, capital efficiency
 ```
 
 ## Conventions
@@ -103,6 +115,31 @@ backend/src/
 - Use `web3.py` for all on-chain interactions
 - Package management via `uv`
 - Keep files small and focused — split into logical modules
+
+## Directory Structure Rules
+
+**No parallel structures.** There is ONE canonical location for each type of file:
+
+- **Plots:** `backend/notebooks/plots/` — the ONLY plots directory. Notebooks save here
+  (relative as `plots/`). Temp scripts also save here. Never create `backend/plots/`.
+- **Temp scripts:** `backend/temp_scripts/` — all prototype/test `.py` files go here.
+  Never leave loose `.py` files in `backend/` root.
+- **Source modules:** `backend/src/` — all importable Python code.
+- **Notebooks:** `backend/notebooks/` — all `.ipynb` files.
+- **Data exports:** `backend/notebooks/data/` — CSV exports from notebooks.
+
+## Notebook Development Workflow
+
+**Always test before adding to notebooks.** Notebooks are client-facing — never add untested
+code or plots directly. For any new analysis section:
+
+1. Write a test script in `backend/temp_scripts/` that exercises the new module functions
+   and generates the plots (saving to `notebooks/plots/`)
+2. Run it from `backend/`: `uv run python temp_scripts/my_test.py`
+3. Inspect the output (print statements, saved PNGs) to verify correctness
+4. Iterate on the plot styling until it looks good
+5. Only then add the finalized code to the notebook
+6. Delete the temp script when done (or keep for reference if useful)
 
 ## Linting & Type Checking
 
