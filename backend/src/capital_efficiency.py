@@ -4,6 +4,8 @@ Capital efficiency and net slippage comparison utilities.
 Pure-computation functions (no RPC calls) for cross-system V2 vs V4 analysis.
 """
 
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -86,19 +88,22 @@ def find_breakeven_trade_size(
     sizes_usd: list[int],
 ) -> float | None:
     """
-    Linearly interpolate to find where V4 net cost equals V2 net cost.
+    Interpolate in log-space to find where V4 net cost equals V2 net cost.
 
-    Returns the USD trade size at the crossover, or None if V4 is always
-    cheaper or always more expensive.
+    Uses log-space interpolation so the result matches the visual crossing
+    point on a log-scale x-axis plot. Returns the USD trade size at the
+    crossover, or None if no sign change is found.
     """
     diffs = [v2 - v4 for v2, v4 in zip(v2_net_avgs, v4_net_avgs)]
 
     for i in range(len(diffs) - 1):
         if diffs[i] * diffs[i + 1] < 0:
-            # Sign change: interpolate
+            # Sign change: interpolate in log-space
             frac = abs(diffs[i]) / (abs(diffs[i]) + abs(diffs[i + 1]))
-            breakeven = sizes_usd[i] + frac * (sizes_usd[i + 1] - sizes_usd[i])
-            return float(breakeven)
+            log_be = math.log10(sizes_usd[i]) + frac * (
+                math.log10(sizes_usd[i + 1]) - math.log10(sizes_usd[i])
+            )
+            return 10**log_be
 
     return None
 
