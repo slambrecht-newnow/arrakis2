@@ -26,13 +26,11 @@ def compute_net_slippage_summary(
     v2_amounts: list[int],
     v4_amounts: list[int],
     sizes_usd: list[int],
-    v2_fee_pct: float = 0.30,
-    v4_fee_pct: float = 0.70,
 ) -> pd.DataFrame:
     """
     Compute time-averaged gross and net slippage per trade size for V2 and V4.
 
-    Net slippage = gross slippage + fee (total cost to trader).
+    Uses net_slippage_pct directly from results (actual on-chain fees, not hardcoded).
     Returns a DataFrame with columns: size_usd, v2_gross_avg, v4_gross_avg,
     v2_net_avg, v4_net_avg, gross_improvement_pct, net_improvement_pct.
     """
@@ -48,12 +46,23 @@ def compute_net_slippage_summary(
             for r in v4_results
             if "error" not in r and _has_trade(r, v4_amt)
         ]
+        v2_net = [
+            _get_trade(r, v2_amt)["net_slippage_pct"]
+            for r in v2_results
+            if "error" not in r and _has_trade(r, v2_amt)
+            and "net_slippage_pct" in _get_trade(r, v2_amt)
+        ]
+        v4_net = [
+            _get_trade(r, v4_amt)["net_slippage_pct"]
+            for r in v4_results
+            if "error" not in r and _has_trade(r, v4_amt)
+            and "net_slippage_pct" in _get_trade(r, v4_amt)
+        ]
 
         v2_g = float(np.mean(v2_gross)) if v2_gross else 0.0
         v4_g = float(np.mean(v4_gross)) if v4_gross else 0.0
-
-        v2_n = v2_g + v2_fee_pct
-        v4_n = v4_g + v4_fee_pct
+        v2_n = float(np.mean(v2_net)) if v2_net else 0.0
+        v4_n = float(np.mean(v4_net)) if v4_net else 0.0
 
         gross_imp = (v2_g - v4_g) / v2_g * 100 if v2_g > 0 else 0.0
         net_imp = (v2_n - v4_n) / v2_n * 100 if v2_n > 0 else 0.0
@@ -102,7 +111,7 @@ def compute_capital_efficiency_ratio(
     Compute how many times more capital-efficient V4 is vs V2.
 
     Ratio = v2_gross / v4_gross. Higher means V4 needs less capital
-    for the same price impact.
+    for the same slippage.
     """
     if v4_gross_avg <= 0:
         return float("inf")
