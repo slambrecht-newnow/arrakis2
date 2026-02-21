@@ -35,7 +35,7 @@ def find_v4_pool_creation_block(
             else:
                 low = mid + 1
         except Exception:
-            logger.warning("V4 pool query failed at block %d", mid, exc_info=True)
+            logger.debug("  block %d: contract not yet deployed, advancing search", mid)
             low = mid + 1
 
     return low
@@ -60,7 +60,7 @@ def find_vault_first_deposit_block(
             else:
                 low = mid + 1
         except Exception:
-            logger.warning("Vault query failed at block %d", mid, exc_info=True)
+            logger.debug("  block %d: contract not yet deployed, advancing search", mid)
             low = mid + 1
 
     return low
@@ -86,7 +86,7 @@ def detect_v2_liquidity_drop(
                     return block
             prev_total = total
         except Exception:
-            logger.warning("V2 reserves query failed at block %d", block, exc_info=True)
+            logger.warning("V2 reserves query failed at block %d", block)
             continue
     return None
 

@@ -12,5 +12,8 @@ wheels/
 # Virtual environments
 .venv
 
+# RPC cache (regenerated from on-chain data)
+backend/notebooks/data/*.json
+
 #mac
 .DS_Store
