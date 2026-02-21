@@ -13,7 +13,7 @@ wheels/
 .venv
 
 # RPC cache (regenerated from on-chain data)
-backend/notebooks/data/*.json
+backend/notebooks/data/
 
 #mac
 .DS_Store
