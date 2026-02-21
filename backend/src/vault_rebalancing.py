@@ -136,3 +136,14 @@ def compute_capital_efficiency(
         return 0.0
 
     return active_liquidity / l_fullrange
+
+
+def estimate_rebalancing_gas_cost(
+    n_rebalances: int,
+    avg_gas_per_rebalance: int,
+    avg_gas_price_gwei: float,
+    eth_usd_price: float,
+) -> float:
+    """Estimate total gas cost of rebalancing in USD."""
+    gas_cost_eth = n_rebalances * avg_gas_per_rebalance * avg_gas_price_gwei * 1e-9
+    return gas_cost_eth * eth_usd_price
